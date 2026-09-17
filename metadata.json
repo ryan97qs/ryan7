@@ -1,0 +1,6 @@
+{
+  "name": "Registro de Asistencia",
+  "description": "Sistema web para el registro y gestión de asistencias de estudiantes con carga de Excel, cálculo automático de penalidades por tardanza y exportación a .xlsx.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

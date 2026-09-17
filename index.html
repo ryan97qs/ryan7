@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de Asistencia y Control de Penalidades</title>
+  <meta name="description" content="Sistema web para el registro y gestión de asistencias de estudiantes con carga de Excel, cálculo automático de penalidades por tardanza y exportación a .xlsx." />
+  <meta property="og:title" content="Registro de Asistencia y Control de Penalidades" />
+  <meta property="og:description" content="Sistema web para el registro y gestión de asistencias de estudiantes con carga de Excel, cálculo automático de penalidades por tardanza y exportación a .xlsx." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- SheetJS (xlsx) CDN oficial -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       VARIABLES Y ESTILOS BASE (CSS3)
+       ========================================================================== */
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --primary-border: #bfdbfe;
+      
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --success-border: #bbf7d0;
+
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --danger-light: #fef2f2;
+      --danger-border: #fecaca;
+      --danger-text: #991b1b;
+
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --warning-border: #fde68a;
+
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-400: #94a3b8;
+      --gray-500: #64748b;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: #f8fafc;
+      color: var(--gray-800);
+      line-height: 1.5;
+      padding: 1.5rem 1rem 3rem 1rem;
+    }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ==========================================================================
+       ENCABEZADO Y NAVEGACIÓN
+       ========================================================================== */
+    header.main-header {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-title h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-title p {
+      font-size: 0.875rem;
+      color: var(--gray-500);
+      margin-top: 0.25rem;
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .badge-primary {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary-border);
+    }
+
+    .badge-neutral {
+      background: var(--gray-100);
+      color: var(--gray-700);
+      border-color: var(--gray-200);
+    }
+
+    /* ==========================================================================
+       PANELES DE CONTROL SUPERIOR
+       ========================================================================== */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Selector de hora global */
+    .time-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .time-input-group label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    input[type="time"] {
+      font-family: inherit;
+      font-size: 1.125rem;
+      font-weight: 600;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      color: var(--gray-800);
+      background-color: #ffffff;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input[type="time"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8125rem;
+      color: var(--gray-500);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--gray-300);
+    }
+
+    .status-dot.active {
+      background-color: var(--success);
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+    }
+
+    /* Zona de carga de archivos */
+    .file-dropzone {
+      border: 2px dashed var(--gray-300);
+      border-radius: var(--radius-md);
+      padding: 1.25rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      background-color: var(--gray-50);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .file-dropzone:hover, .file-dropzone.dragover {
+      border-color: var(--primary);
+      background-color: var(--primary-light);
+    }
+
+    .file-dropzone input[type="file"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .dropzone-text strong {
+      display: block;
+      font-size: 0.95rem;
+      color: var(--gray-800);
+      margin-bottom: 0.25rem;
+    }
+
+    .dropzone-text span {
+      font-size: 0.8125rem;
+      color: var(--gray-500);
+    }
+
+    .file-quick-links {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    /* Botones */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.7rem;
+      font-size: 0.8125rem;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-success {
+      background-color: var(--success);
+      color: #ffffff;
+    }
+    .btn-success:hover {
+      background-color: #15803d;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-light);
+      color: var(--danger);
+      border-color: var(--danger-border);
+    }
+    .btn-danger:hover {
+      background-color: #fee2e2;
+    }
+
+    .btn-secondary {
+      background-color: #ffffff;
+      color: var(--gray-700);
+      border-color: var(--gray-300);
+    }
+    .btn-secondary:hover {
+      background-color: var(--gray-100);
+    }
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .btn-link:hover {
+      color: var(--primary-hover);
+    }
+
+    /* ==========================================================================
+       RESUMEN DE MÉTRICAS / KPI
+       ========================================================================== */
+    .metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .metric-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    .metric-value.penalty {
+      color: var(--danger);
+    }
+
+    .metric-value.success {
+      color: var(--success);
+    }
+
+    /* Reglas de penalidad informativas */
+    .rules-card {
+      background: var(--warning-light);
+      border: 1px solid var(--warning-border);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.8125rem;
+      color: #78350f;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .rules-tags {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .rules-tag {
+      background: #ffffff;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      border: 1px solid rgba(180, 83, 9, 0.2);
+    }
+
+    /* ==========================================================================
+       TABLA DINÁMICA DE ASISTENCIA
+       ========================================================================== */
+    .table-container {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .table-toolbar {
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--gray-200);
+      background-color: #ffffff;
+    }
+
+    .search-box {
+      position: relative;
+      min-width: 260px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table.attendance-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+
+    table.attendance-table th {
+      background-color: var(--gray-50);
+      color: var(--gray-600);
+      font-weight: 700;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--gray-200);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    table.attendance-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--gray-200);
+      vertical-align: middle;
+      transition: background-color 0.15s ease;
+    }
+
+    /* Filas con penalidad: destacado en rojo suave */
+    tr.row-penalty {
+      background-color: var(--danger-light) !important;
+    }
+    tr.row-penalty:hover {
+      background-color: #fee2e2 !important;
+    }
+
+    /* Filas registradas puntuales */
+    tr.row-punctual {
+      background-color: var(--success-light);
+    }
+    tr.row-punctual:hover {
+      background-color: #dcfce7;
+    }
+
+    /* Fila estándar hover */
+    tr.student-row:hover {
+      background-color: var(--gray-50);
+    }
+
+    .student-id {
+      font-weight: 600;
+      color: var(--gray-500);
+      width: 40px;
+    }
+
+    .student-name {
+      font-weight: 600;
+      color: var(--gray-900);
+      min-width: 200px;
+    }
+
+    .input-time-cell input[type="time"] {
+      padding: 0.35rem 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+      outline: none;
+      width: 130px;
+    }
+
+    .input-time-cell input[type="time"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    .input-obs-cell input[type="text"] {
+      width: 100%;
+      min-width: 180px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.85rem;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+      outline: none;
+    }
+
+    .input-obs-cell input[type="text"]:focus {
+      border-color: var(--primary);
+    }
+
+    /* Celda de Penalidad Automática */
+    .penalty-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .penalty-badge.none {
+      background-color: var(--gray-100);
+      color: var(--gray-500);
+      border: 1px solid var(--gray-200);
+    }
+
+    .penalty-badge.on-time {
+      background-color: var(--success-light);
+      color: var(--success);
+      border: 1px solid var(--success-border);
+    }
+
+    .penalty-badge.penalized {
+      background-color: #fee2e2;
+      color: var(--danger-text);
+      border: 1px solid var(--danger-border);
+    }
+
+    .delay-text {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      display: block;
+      margin-top: 0.15rem;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+
+    /* Estado vacío */
+    .empty-state {
+      padding: 3.5rem 1.5rem;
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      font-size: 2.5rem;
+      color: var(--gray-400);
+      margin-bottom: 0.75rem;
+    }
+
+    .empty-state h3 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+      font-size: 0.875rem;
+      color: var(--gray-500);
+      max-width: 480px;
+      margin: 0 auto 1.25rem auto;
+    }
+
+    /* ==========================================================================
+       MODAL Y SISTEMA DE ALERTAS VISUALES
+       ========================================================================== */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 400px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.1rem;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      animation: slideIn 0.25s ease forwards;
+      font-size: 0.875rem;
+      color: var(--gray-800);
+    }
+
+    .toast.toast-error {
+      border-left: 4px solid var(--danger);
+      background-color: #fffaf0;
+    }
+
+    .toast.toast-success {
+      border-left: 4px solid var(--success);
+    }
+
+    .toast.toast-warning {
+      border-left: 4px solid var(--warning);
+    }
+
+    .toast-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+      margin-top: 0.1rem;
+    }
+
+    .toast-close {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--gray-400);
+      font-size: 1rem;
+    }
+    .toast-close:hover {
+      color: var(--gray-700);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Modal emergente */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      background: #ffffff;
+      border-radius: var(--radius-lg);
+      max-width: 460px;
+      width: 90%;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-lg);
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-backdrop.active .modal-dialog {
+      transform: scale(1);
+    }
+
+    .modal-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-body {
+      font-size: 0.875rem;
+      color: var(--gray-600);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    /* ==========================================================================
+       RESPONSIVIDAD
+       ========================================================================== */
+    @media (max-width: 768px) {
+      header.main-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .controls-grid {
+        grid-template-columns: 1fr;
+      }
+      .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-box {
+        width: 100%;
+      }
+      .table-actions {
+        justify-content: stretch;
+      }
+      .table-actions .btn {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Encabezado Principal -->
+    <header class="main-header" id="mainHeader">
+      <div class="header-title">
+        <h1>
+          <span>📋</span> Registro y Control de Asistencia
+        </h1>
+        <p>Gestión automatizada de llegadas y cálculo en tiempo real de penalidades por tardanza</p>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-primary" id="currentDateBadge">📅 Fecha: --/--/----</span>
+        <span class="badge badge-neutral" id="statusBadge">Estado: Esperando lista</span>
+      </div>
+    </header>
+
+    <!-- Reglas de penalidad informativas -->
+    <section class="rules-card" id="rulesCard">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span>ℹ️</span>
+        <strong>Reglamento de Tardanzas:</strong>
+      </div>
+      <div class="rules-tags">
+        <span class="rules-tag">0 a 10 min: <strong>$0.00</strong> (Tolerancia)</span>
+        <span class="rules-tag">11 a 20 min: <strong>$0.25</strong></span>
+        <span class="rules-tag">21 a 30 min: <strong>$0.50</strong></span>
+        <span class="rules-tag">> 30 min: <strong>$1.00</strong></span>
+      </div>
+    </section>
+
+    <!-- Paneles de Control: Hora de Inicio, Carga de Archivo y Acciones -->
+    <div class="controls-grid">
+
+      <!-- Tarjeta 1: Configuración de Clase -->
+      <div class="card" id="classConfigCard">
+        <div class="card-header">
+          <div class="card-title">
+            <span>⏰</span> 1. Hora de Inicio de Clase
+          </div>
+          <span class="status-indicator">
+            <span class="status-dot" id="startTimeDot"></span>
+            <span id="startTimeStatusText">Sin configurar</span>
+          </span>
+        </div>
+        <div class="time-input-group">
+          <label for="classStartTime">Establece la hora oficial de inicio:</label>
+          <div class="input-row">
+            <input type="time" id="classStartTime" aria-label="Hora de Inicio de la Clase" value="08:00" />
+            <button class="btn btn-secondary btn-sm" id="btnUpdateStartTime" title="Aplicar o recalcular con esta hora">
+              🔄 Aplicar
+            </button>
+          </div>
+          <small style="color: var(--gray-500); font-size: 0.8125rem;">
+            * El cálculo de minutos de retraso se basará en esta hora.
+          </small>
+        </div>
+      </div>
+
+      <!-- Tarjeta 2: Carga de Estudiantes (Excel) -->
+      <div class="card" id="excelUploadCard">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📂</span> 2. Cargar Lista de Estudiantes
+          </div>
+          <span id="loadedFileBadge" class="badge badge-neutral" style="display: none;">Archivo listo</span>
+        </div>
+        
+        <div class="file-dropzone" id="dropzone" title="Haz clic o arrastra aquí tu archivo Excel">
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls" aria-label="Subir archivo de estudiantes en formato Excel" />
+          <div class="dropzone-text">
+            <strong>Subir archivo Excel (.xlsx, .xls)</strong>
+            <span>Arrastra el archivo o haz clic para seleccionar</span>
+          </div>
+        </div>
+
+        <div class="file-quick-links">
+          <button type="button" class="btn-link" id="btnLoadDemo">
+            ⚡ Usar datos de prueba (Demo)
+          </button>
+          <button type="button" class="btn-link" id="btnDownloadTemplate">
+            📥 Descargar plantilla Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta 3: Acciones Globales y Exportación -->
+      <div class="card" id="exportActionsCard">
+        <div class="card-header">
+          <div class="card-title">
+            <span>💾</span> 3. Guardar y Exportar
+          </div>
+          <span class="badge badge-neutral" id="savedStatusBadge">En memoria</span>
+        </div>
+        
+        <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 1rem;">
+          Exporta el reporte consolidado de asistencia con horas, retrasos y penalidades.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <button class="btn btn-success" id="btnExportExcel" style="width: 100%;">
+            <span>📥</span> Guardar Registro del Día (Exportar a Excel)
+          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" id="btnRecalculateAll" style="flex: 1;" title="Recalcular todas las filas">
+              🔄 Recalcular Todo
+            </button>
+            <button class="btn btn-danger btn-sm" id="btnResetTable" style="flex: 1;" title="Limpiar todos los registros">
+              🗑️ Limpiar Todo
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Barra de Resumen / Métricas en Tiempo Real -->
+    <div class="metrics-bar" id="metricsBar">
+      <div class="metric-card">
+        <div class="metric-label">Total Estudiantes</div>
+        <div class="metric-value" id="metricTotalStudents">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Registrados</div>
+        <div class="metric-value" id="metricRegistered">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Puntuales / Tolerancia</div>
+        <div class="metric-value success" id="metricOnTime">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Con Penalidad</div>
+        <div class="metric-value penalty" id="metricPenalized">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Recaudación</div>
+        <div class="metric-value penalty" id="metricTotalPenalties">$0.00</div>
+      </div>
+    </div>
+
+    <!-- Contenedor Principal de la Tabla Dinámica -->
+    <section class="table-container" id="tableContainer">
+      <div class="table-toolbar">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="🔍 Buscar estudiante por nombre..." aria-label="Buscar estudiante" />
+        </div>
+        <div class="table-actions">
+          <button class="btn btn-secondary btn-sm" id="btnMarkCurrentTimeAll" title="Poner hora actual a estudiantes pendientes">
+            ⏱️ Marcar hora actual a pendientes
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btnResetTimesOnly" title="Limpiar solo horas y penalidades">
+            🧹 Limpiar horas marcadas
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="attendance-table" id="attendanceTable">
+          <thead>
+            <tr>
+              <th style="width: 50px;">N° / ID</th>
+              <th>Nombre del Estudiante</th>
+              <th style="width: 160px;">Hora de Llegada</th>
+              <th>Observaciones</th>
+              <th style="width: 170px;">Penalidad Automática</th>
+              <th style="width: 140px; text-align: center;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceTableBody">
+            <!-- Filas dinámicas generadas mediante JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Estado Vacío cuando no hay estudiantes -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📄</div>
+        <h3>No hay lista de estudiantes cargada</h3>
+        <p>
+          Sube un archivo Excel (.xlsx o .xls) que contenga la columna <strong>"Nombre del Estudiante"</strong>, o presiona el botón inferior para cargar datos de prueba.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+          <button class="btn btn-primary" id="btnEmptyUploadTrigger">
+            📂 Seleccionar Archivo Excel
+          </button>
+          <button class="btn btn-secondary" id="btnEmptyLoadDemo">
+            ⚡ Cargar Lista de Ejemplo
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Contenedor para Notificaciones Toast (Alertas Visuales) -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Modal Visual Reutilizable para Validaciones y Confirmaciones -->
+  <div class="modal-backdrop" id="customModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog">
+      <div class="modal-title" id="modalTitle">
+        <span>⚠️</span> Notificación
+      </div>
+      <div class="modal-body" id="modalMessage">
+        Mensaje del sistema.
+      </div>
+      <div class="modal-actions" id="modalActions">
+        <button class="btn btn-primary btn-sm" id="modalBtnClose">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       LÓGICA JAVASCRIPT VANILLA MODULAR
+       ========================================================================== -->
+  <script>
+    /**
+     * SISTEMA DE GESTIÓN DE ASISTENCIA Y PENALIDADES
+     * Vanilla JavaScript (ES6+), Modular y Seguro ante Excepciones.
+     */
+
+    // --- Estado Global de la Aplicación ---
+    const AppState = {
+      classStartTime: "08:00",
+      students: [], // Array de objetos { id, name, arrivalTime, observations, delayMinutes, penalty }
+      loadedFileName: "",
+      storageKey: "asistencia_docente_data_v1"
+    };
+
+    // --- Inicialización al Cargar el DOM ---
+    document.addEventListener("DOMContentLoaded", () => {
+      try {
+        initUI();
+        bindEvents();
+        loadSavedSession();
+      } catch (error) {
+        console.error("Error durante la inicialización:", error);
+        showAlert("Error de Inicio", "Ocurrió un inconveniente al cargar la aplicación.", "error");
+      }
+    });
+
+    /**
+     * Inicializa componentes visuales básicos (fecha actual, hora)
+     */
+    function initUI() {
+      const now = new Date();
+      const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+      const formattedDate = now.toLocaleDateString('es-ES', options);
+      
+      const dateBadge = document.getElementById("currentDateBadge");
+      if (dateBadge) {
+        dateBadge.textContent = `📅 Fecha: ${formattedDate}`;
+      }
+
+      const startTimeInput = document.getElementById("classStartTime");
+      if (startTimeInput && AppState.classStartTime) {
+        startTimeInput.value = AppState.classStartTime;
+        updateStartTimeStatus(true);
+      }
+    }
+
+    /**
+     * Vincula todos los escuchadores de eventos
+     */
+    function bindEvents() {
+      // 1. Selector de hora de inicio
+      const startTimeInput = document.getElementById("classStartTime");
+      if (startTimeInput) {
+        startTimeInput.addEventListener("change", (e) => {
+          AppState.classStartTime = e.target.value.trim();
+          updateStartTimeStatus(!!AppState.classStartTime);
+          if (AppState.students.length > 0) {
+            recalculateAllPenalties();
+            showToast("Hora de inicio actualizada. Penalidades recalculadas.", "info");
+          }
+          saveSession();
+        });
+      }
+
+      const btnUpdateStartTime = document.getElementById("btnUpdateStartTime");
+      if (btnUpdateStartTime) {
+        btnUpdateStartTime.addEventListener("click", () => {
+          const val = startTimeInput.value.trim();
+          if (!val) {
+            showAlert("Hora de Inicio Requerida", "Por favor ingresa una hora válida para el inicio de la clase.", "warning");
+            return;
+          }
+          AppState.classStartTime = val;
+          updateStartTimeStatus(true);
+          recalculateAllPenalties();
+          showToast(`Hora de inicio confirmada: ${val}`, "success");
+          saveSession();
+        });
+      }
+
+      // 2. Carga de archivo Excel
+      const fileInput = document.getElementById("excelFileInput");
+      if (fileInput) {
+        fileInput.addEventListener("change", handleFileSelect);
+      }
+
+      const dropzone = document.getElementById("dropzone");
+      if (dropzone) {
+        dropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          dropzone.classList.add("dragover");
+        });
+        dropzone.addEventListener("dragleave", () => {
+          dropzone.classList.remove("dragover");
+        });
+        dropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("dragover");
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            processExcelFile(e.dataTransfer.files[0]);
+          }
+        });
+      }
+
+      // Botón desencadenante en estado vacío
+      const btnEmptyUploadTrigger = document.getElementById("btnEmptyUploadTrigger");
+      if (btnEmptyUploadTrigger && fileInput) {
+        btnEmptyUploadTrigger.addEventListener("click", () => fileInput.click());
+      }
+
+      // 3. Botones de acciones y demo
+      const btnLoadDemo = document.getElementById("btnLoadDemo");
+      if (btnLoadDemo) btnLoadDemo.addEventListener("click", loadDemoStudents);
+
+      const btnEmptyLoadDemo = document.getElementById("btnEmptyLoadDemo");
+      if (btnEmptyLoadDemo) btnEmptyLoadDemo.addEventListener("click", loadDemoStudents);
+
+      const btnDownloadTemplate = document.getElementById("btnDownloadTemplate");
+      if (btnDownloadTemplate) btnDownloadTemplate.addEventListener("click", downloadExcelTemplate);
+
+      const btnExportExcel = document.getElementById("btnExportExcel");
+      if (btnExportExcel) btnExportExcel.addEventListener("click", exportAttendanceToExcel);
+
+      const btnRecalculateAll = document.getElementById("btnRecalculateAll");
+      if (btnRecalculateAll) btnRecalculateAll.addEventListener("click", () => {
+        if (AppState.students.length === 0) {
+          showAlert("Sin datos", "Primero debes cargar una lista de estudiantes.", "warning");
+          return;
+        }
+        recalculateAllPenalties();
+        showToast("Todas las filas han sido recalculadas con éxito.", "success");
+      });
+
+      const btnResetTable = document.getElementById("btnResetTable");
+      if (btnResetTable) btnResetTable.addEventListener("click", confirmResetAll);
+
+      const btnResetTimesOnly = document.getElementById("btnResetTimesOnly");
+      if (btnResetTimesOnly) btnResetTimesOnly.addEventListener("click", resetTimesOnly);
+
+      const btnMarkCurrentTimeAll = document.getElementById("btnMarkCurrentTimeAll");
+      if (btnMarkCurrentTimeAll) btnMarkCurrentTimeAll.addEventListener("click", markCurrentTimeToPending);
+
+      // Búsqueda en tiempo real
+      const searchInput = document.getElementById("searchInput");
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          filterTable(e.target.value.trim().toLowerCase());
+        });
+      }
+
+      // Modal Cerrar
+      const modalBtnClose = document.getElementById("modalBtnClose");
+      const customModal = document.getElementById("customModal");
+      if (modalBtnClose && customModal) {
+        modalBtnClose.addEventListener("click", () => {
+          customModal.classList.remove("active");
+        });
+      }
+    }
+
+    /**
+     * Actualiza el indicador de estado de la hora de inicio
+     */
+    function updateStartTimeStatus(isConfigured) {
+      const dot = document.getElementById("startTimeDot");
+      const text = document.getElementById("startTimeStatusText");
+      if (!dot || !text) return;
+
+      if (isConfigured && AppState.classStartTime) {
+        dot.classList.add("active");
+        text.textContent = `Configurada (${AppState.classStartTime})`;
+      } else {
+        dot.classList.remove("active");
+        text.textContent = "Sin configurar";
+      }
+    }
+
+    /**
+     * Procesa la selección del archivo Excel
+     */
+    function handleFileSelect(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      processExcelFile(files[0]);
+    }
+
+    /**
+     * Lee y procesa el archivo Excel utilizando SheetJS
+     */
+    function processExcelFile(file) {
+      if (!file) return;
+
+      // Validación de extensión
+      const validExtensions = [".xlsx", ".xls"];
+      const fileName = file.name.toLowerCase();
+      const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+
+      if (!isValid) {
+        showAlert("Formato no válido", "Por favor selecciona un archivo con extensión .xlsx o .xls", "error");
+        return;
+      }
+
+      // Verificar disponibilidad de SheetJS
+      if (typeof XLSX === "undefined") {
+        showAlert("Error de Librería", "La librería SheetJS no se ha cargado correctamente. Verifica la conexión a internet.", "error");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          // Tomar la primera hoja
+          const firstSheetName = workbook.SheetNames[0];
+          if (!firstSheetName) {
+            showAlert("Archivo vacío", "El archivo Excel seleccionado no contiene hojas de cálculo legibles.", "warning");
+            return;
+          }
+
+          const worksheet = workbook.Sheets[firstSheetName];
+          // Convertir a array de objetos
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+          if (!jsonData || jsonData.length === 0) {
+            showAlert("Lista Vacía", "La primera hoja del archivo Excel no contiene filas de datos.", "warning");
+            return;
+          }
+
+          // Identificar columna "Nombre del Estudiante" o variantes
+          const keys = Object.keys(jsonData[0]);
+          let targetColumn = null;
+
+          for (const key of keys) {
+            const normalized = key.trim().toLowerCase();
+            if (
+              normalized === "nombre del estudiante" ||
+              normalized === "nombre del alumno" ||
+              normalized === "nombre estudiante" ||
+              normalized === "nombres" ||
+              normalized === "nombre" ||
+              normalized === "estudiante" ||
+              normalized === "alumno"
+            ) {
+              targetColumn = key;
+              break;
+            }
+          }
+
+          // Si no se encuentra exacta, tomar la columna que contenga "nombre" o "estudiante", o en su defecto la primera columna
+          if (!targetColumn) {
+            for (const key of keys) {
+              const norm = key.trim().toLowerCase();
+              if (norm.includes("nombre") || norm.includes("estudiant") || norm.includes("alumno")) {
+                targetColumn = key;
+                break;
+              }
+            }
+          }
+
+          if (!targetColumn) {
+            targetColumn = keys[0]; // fallback
+            showToast(`Se utilizó la columna "${targetColumn}" como nombre del estudiante.`, "info");
+          }
+
+          // Construir array de estudiantes
+          const parsedStudents = [];
+          let currentId = 1;
+
+          for (const row of jsonData) {
+            const rawName = row[targetColumn];
+            const name = rawName ? String(rawName).trim() : "";
+            if (name) {
+              parsedStudents.push({
+                id: currentId++,
+                name: name,
+                arrivalTime: "",
+                observations: "",
+                delayMinutes: 0,
+                penalty: 0
+              });
+            }
+          }
+
+          if (parsedStudents.length === 0) {
+            showAlert("Sin nombres válidos", `No se pudieron extraer nombres válidos de la columna "${targetColumn}".`, "warning");
+            return;
+          }
+
+          // Actualizar estado
+          AppState.students = parsedStudents;
+          AppState.loadedFileName = file.name;
+
+          // Actualizar UI
+          updateLoadedFileUI(file.name);
+          renderStudentsTable();
+          updateMetrics();
+          saveSession();
+
+          showAlert(
+            "¡Carga Exitosa!", 
+            `Se han importado exitosamente ${parsedStudents.length} estudiantes desde el archivo <strong>${file.name}</strong>.`, 
+            "success"
+          );
+
+        } catch (err) {
+          console.error("Error al procesar el Excel:", err);
+          showAlert("Error de Lectura", "Ocurrió un error al intentar leer el archivo Excel. Asegúrate de que no esté corrupto ni protegido con contraseña.", "error");
+        }
+      };
+
+      reader.onerror = function() {
+        showAlert("Error de Archivo", "No se pudo leer el archivo seleccionado.", "error");
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    /**
+     * Muestra el badge del archivo cargado
+     */
+    function updateLoadedFileUI(name) {
+      const badge = document.getElementById("loadedFileBadge");
+      const statusBadge = document.getElementById("statusBadge");
+      if (badge) {
+        badge.textContent = `📄 ${name}`;
+        badge.style.display = "inline-flex";
+      }
+      if (statusBadge) {
+        statusBadge.textContent = "Estado: Lista cargada";
+        statusBadge.className = "badge badge-primary";
+      }
+    }
+
+    /**
+     * Carga un listado demo de 15 estudiantes para probar inmediatamente
+     */
+    function loadDemoStudents() {
+      const demoNames = [
+        "Alejandro Morales Rivera",
+        "Beatriz Elena Salazar",
+        "Carlos Andrés Mendoza",
+        "Daniela Fernanda Castro",
+        "Esteban José Ramírez",
+        "Fiorella Valentina Vargas",
+        "Gabriel Antonio Paredes",
+        "Helena Sofía Gutiérrez",
+        "Ignacio Javier Delgado",
+        "Juliana Rocío Ortiz",
+        "Kevin Mauricio Reyes",
+        "Lucía Mariana Flores",
+        "Mateo Nicolás Benítez",
+        "Natalia Carolina Herrera",
+        "Oscar Eduardo Jiménez"
+      ];
+
+      AppState.students = demoNames.map((name, index) => ({
+        id: index + 1,
+        name: name,
+        arrivalTime: "",
+        observations: "",
+        delayMinutes: 0,
+        penalty: 0
+      }));
+
+      AppState.loadedFileName = "Demo_Estudiantes.xlsx";
+      updateLoadedFileUI("Demo_Estudiantes.xlsx");
+      renderStudentsTable();
+      updateMetrics();
+      saveSession();
+
+      showToast(`Se cargaron ${demoNames.length} estudiantes de prueba.`, "success");
+    }
+
+    /**
+     * Genera y descarga una plantilla Excel vacía lista para usar
+     */
+    function downloadExcelTemplate() {
+      try {
+        if (typeof XLSX === "undefined") {
+          showAlert("Error", "La librería SheetJS no está lista.", "error");
+          return;
+        }
+
+        const templateData = [
+          { "Nombre del Estudiante": "Ejemplo 1: Juan Carlos Pérez" },
+          { "Nombre del Estudiante": "Ejemplo 2: María Alejandra Gómez" },
+          { "Nombre del Estudiante": "Ejemplo 3: Roberto Carlos Silva" }
+        ];
+
+        const ws = XLSX.utils.json_to_sheet(templateData);
+        ws['!cols'] = [{ wch: 40 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "ListaEstudiantes");
+        XLSX.writeFile(wb, "Plantilla_Estudiantes.xlsx");
+
+        showToast("Descargando plantilla Plantilla_Estudiantes.xlsx...", "info");
+      } catch (e) {
+        console.error("Error al generar plantilla:", e);
+        showAlert("Error", "No se pudo generar la plantilla Excel.", "error");
+      }
+    }
+
+    /**
+     * ==========================================================================
+     * LÓGICA DE PENALIDAD AUTOMÁTICA
+     * ==========================================================================
+     * Reglas:
+     * - De 0 a 10 minutos de retraso: $0.00
+     * - De 11 a 20 minutos de retraso: $0.25
+     * - De 21 a 30 minutos de retraso: $0.50
+     * - Más de 30 minutos de retraso: $1.00
+     */
+    function calculatePenalty(startTimeStr, arrivalTimeStr) {
+      if (!startTimeStr || !arrivalTimeStr) {
+        return { delayMinutes: 0, penalty: 0, formatted: "$0.00", status: "none" };
+      }
+
+      const [startHour, startMin] = startTimeStr.split(":").map(Number);
+      const [arrHour, arrMin] = arrivalTimeStr.split(":").map(Number);
+
+      const startTotalMinutes = startHour * 60 + startMin;
+      const arrTotalMinutes = arrHour * 60 + arrMin;
+
+      const delayMinutes = arrTotalMinutes - startTotalMinutes;
+
+      // Si llegó antes o a la misma hora exacta
+      if (delayMinutes <= 0) {
+        return {
+          delayMinutes: delayMinutes,
+          penalty: 0.00,
+          formatted: "$0.00",
+          status: "early"
+        };
+      }
+
+      // Reglas de penalidad según requerimiento funcional
+      let penalty = 0.00;
+      let status = "on-time";
+
+      if (delayMinutes <= 10) {
+        penalty = 0.00; // Tolerancia
+        status = "on-time";
+      } else if (delayMinutes >= 11 && delayMinutes <= 20) {
+        penalty = 0.25;
+        status = "penalized";
+      } else if (delayMinutes >= 21 && delayMinutes <= 30) {
+        penalty = 0.50;
+        status = "penalized";
+      } else { // Más de 30 minutos
+        penalty = 1.00;
+        status = "penalized";
+      }
+
+      return {
+        delayMinutes: delayMinutes,
+        penalty: penalty,
+        formatted: `$${penalty.toFixed(2)}`,
+        status: status
+      };
+    }
+
+    /**
+     * Manejador al ingresar o cambiar la hora de llegada de un estudiante
+     */
+    function onArrivalTimeChange(studentId, newTime) {
+      try {
+        const student = AppState.students.find(s => s.id === studentId);
+        if (!student) return;
+
+        // Validación funcional: Si no hay hora de inicio configurada
+        if (newTime && !AppState.classStartTime) {
+          showAlert(
+            "Hora de Inicio Requerida", 
+            "Antes de registrar la hora de llegada de un estudiante, debes configurar la <strong>Hora de Inicio de la Clase</strong> en el panel superior.", 
+            "warning"
+          );
+          // Enfocar el campo de hora de inicio
+          const startTimeInput = document.getElementById("classStartTime");
+          if (startTimeInput) startTimeInput.focus();
+          
+          // Revertir el input de llegada
+          const rowInput = document.getElementById(`arrival_${studentId}`);
+          if (rowInput) rowInput.value = student.arrivalTime || "";
+          return;
+        }
+
+        student.arrivalTime = newTime;
+
+        if (newTime) {
+          const result = calculatePenalty(AppState.classStartTime, newTime);
+          student.delayMinutes = result.delayMinutes;
+          student.penalty = result.penalty;
+        } else {
+          student.delayMinutes = 0;
+          student.penalty = 0;
+        }
+
+        updateRowDOM(student);
+        updateMetrics();
+        saveSession();
+
+      } catch (err) {
+        console.error("Error al calcular penalidad:", err);
+      }
+    }
+
+    /**
+     * Manejador al escribir observaciones
+     */
+    function onObservationsChange(studentId, text) {
+      const student = AppState.students.find(s => s.id === studentId);
+      if (student) {
+        student.observations = text;
+        saveSession();
+      }
+    }
+
+    /**
+     * Recalcula las penalidades de todas las filas registradas
+     */
+    function recalculateAllPenalties() {
+      if (!AppState.classStartTime) return;
+
+      AppState.students.forEach(student => {
+        if (student.arrivalTime) {
+          const result = calculatePenalty(AppState.classStartTime, student.arrivalTime);
+          student.delayMinutes = result.delayMinutes;
+          student.penalty = result.penalty;
+          updateRowDOM(student);
+        }
+      });
+
+      updateMetrics();
+      saveSession();
+    }
+
+    /**
+     * Limpia los datos de una fila específica
+     */
+    function clearStudentRow(studentId) {
+      const student = AppState.students.find(s => s.id === studentId);
+      if (!student) return;
+
+      student.arrivalTime = "";
+      student.observations = "";
+      student.delayMinutes = 0;
+      student.penalty = 0;
+
+      const arrivalInput = document.getElementById(`arrival_${studentId}`);
+      if (arrivalInput) arrivalInput.value = "";
+
+      const obsInput = document.getElementById(`obs_${studentId}`);
+      if (obsInput) obsInput.value = "";
+
+      updateRowDOM(student);
+      updateMetrics();
+      saveSession();
+
+      showToast(`Fila del estudiante "${student.name}" restablecida.`, "info");
+    }
+
+    /**
+     * Botón Editar / Recalcular específico de la fila
+     */
+    function editOrRecalculateRow(studentId) {
+      const arrivalInput = document.getElementById(`arrival_${studentId}`);
+      if (arrivalInput) {
+        arrivalInput.focus();
+        if (!arrivalInput.value) {
+          // Si está vacío, asignar hora actual como conveniencia
+          const now = new Date();
+          const hh = String(now.getHours()).padStart(2, '0');
+          const mm = String(now.getMinutes()).padStart(2, '0');
+          arrivalInput.value = `${hh}:${mm}`;
+          onArrivalTimeChange(studentId, arrivalInput.value);
+          showToast(`Se asignó la hora actual a ${AppState.students.find(s => s.id === studentId)?.name}`, "info");
+        } else {
+          // Recalcular explícitamente
+          onArrivalTimeChange(studentId, arrivalInput.value);
+          showToast(`Fila recalculada correctamente.`, "success");
+        }
+      }
+    }
+
+    /**
+     * Actualiza el DOM de una fila concreta sin redibujar toda la tabla
+     */
+    function updateRowDOM(student) {
+      const tr = document.getElementById(`row_${student.id}`);
+      if (!tr) return;
+
+      // Remover clases previas
+      tr.classList.remove("row-penalty", "row-punctual");
+
+      const penaltyCell = document.getElementById(`penalty_badge_${student.id}`);
+      const delaySpan = document.getElementById(`delay_text_${student.id}`);
+
+      if (!student.arrivalTime) {
+        if (penaltyCell) {
+          penaltyCell.className = "penalty-badge none";
+          penaltyCell.textContent = "$0.00";
+        }
+        if (delaySpan) delaySpan.textContent = "Pendiente";
+        return;
+      }
+
+      // Con hora registrada
+      if (student.penalty > 0) {
+        tr.classList.add("row-penalty"); // Destacar en color rojo suave
+        if (penaltyCell) {
+          penaltyCell.className = "penalty-badge penalized";
+          penaltyCell.textContent = `$${student.penalty.toFixed(2)}`;
+        }
+        if (delaySpan) {
+          delaySpan.textContent = `+${student.delayMinutes} min de retraso`;
+          delaySpan.style.color = "var(--danger-text)";
+        }
+      } else {
+        tr.classList.add("row-punctual");
+        if (penaltyCell) {
+          penaltyCell.className = "penalty-badge on-time";
+          penaltyCell.textContent = "$0.00";
+        }
+        if (delaySpan) {
+          if (student.delayMinutes < 0) {
+            delaySpan.textContent = `${Math.abs(student.delayMinutes)} min antes`;
+          } else if (student.delayMinutes === 0) {
+            delaySpan.textContent = "A tiempo exacto";
+          } else {
+            delaySpan.textContent = `Tolerancia (${student.delayMinutes} min)`;
+          }
+          delaySpan.style.color = "var(--success)";
+        }
+      }
+    }
+
+    /**
+     * Renderiza dinámicamente toda la tabla de estudiantes
+     */
+    function renderStudentsTable() {
+      const tbody = document.getElementById("attendanceTableBody");
+      const emptyState = document.getElementById("emptyState");
+      const table = document.getElementById("attendanceTable");
+
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+
+      if (AppState.students.length === 0) {
+        if (emptyState) emptyState.style.display = "block";
+        if (table) table.style.display = "none";
+        return;
+      }
+
+      if (emptyState) emptyState.style.display = "none";
+      if (table) table.style.display = "table";
+
+      const fragment = document.createDocumentFragment();
+
+      AppState.students.forEach(student => {
+        const tr = document.createElement("tr");
+        tr.id = `row_${student.id}`;
+        tr.className = "student-row";
+
+        // Determinar estilo inicial según penalidad
+        let badgeClass = "penalty-badge none";
+        let badgeText = "$0.00";
+        let delayText = "Pendiente";
+        let delayColor = "var(--gray-500)";
+
+        if (student.arrivalTime) {
+          if (student.penalty > 0) {
+            tr.classList.add("row-penalty");
+            badgeClass = "penalty-badge penalized";
+            badgeText = `$${student.penalty.toFixed(2)}`;
+            delayText = `+${student.delayMinutes} min de retraso`;
+            delayColor = "var(--danger-text)";
+          } else {
+            tr.classList.add("row-punctual");
+            badgeClass = "penalty-badge on-time";
+            badgeText = "$0.00";
+            delayText = student.delayMinutes <= 0 ? "Puntual" : `Tolerancia (${student.delayMinutes} min)`;
+            delayColor = "var(--success)";
+          }
+        }
+
+        tr.innerHTML = `
+          <td class="student-id">${student.id}</td>
+          <td class="student-name">
+            <span id="name_${student.id}">${escapeHtml(student.name)}</span>
+          </td>
+          <td class="input-time-cell">
+            <input 
+              type="time" 
+              id="arrival_${student.id}" 
+              aria-label="Hora de llegada para ${escapeHtml(student.name)}"
+              value="${student.arrivalTime || ''}"
+            />
+          </td>
+          <td class="input-obs-cell">
+            <input 
+              type="text" 
+              id="obs_${student.id}" 
+              placeholder="Ej. Justificante médico, uniforme..." 
+              aria-label="Observaciones para ${escapeHtml(student.name)}"
+              value="${escapeHtml(student.observations || '')}"
+            />
+          </td>
+          <td>
+            <span class="${badgeClass}" id="penalty_badge_${student.id}">${badgeText}</span>
+            <span class="delay-text" id="delay_text_${student.id}" style="color: ${delayColor}">${delayText}</span>
+          </td>
+          <td>
+            <div class="row-actions">
+              <button 
+                type="button" 
+                class="btn btn-secondary btn-sm" 
+                title="Editar / Recalcular"
+                onclick="window.__App.editOrRecalculateRow(${student.id})"
+              >
+                ✏️ Recalcular
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-danger btn-sm" 
+                title="Limpiar fila"
+                onclick="window.__App.clearStudentRow(${student.id})"
+              >
+                🗑️
+              </button>
+            </div>
+          </td>
+        `;
+
+        // Añadir escuchadores a los inputs de la fila
+        const timeInput = tr.querySelector(`#arrival_${student.id}`);
+        if (timeInput) {
+          timeInput.addEventListener("change", (e) => {
+            onArrivalTimeChange(student.id, e.target.value);
+          });
+        }
+
+        const obsInput = tr.querySelector(`#obs_${student.id}`);
+        if (obsInput) {
+          obsInput.addEventListener("input", (e) => {
+            onObservationsChange(student.id, e.target.value);
+          });
+        }
+
+        fragment.appendChild(tr);
+      });
+
+      tbody.appendChild(fragment);
+    }
+
+    /**
+     * Filtra la tabla por nombre de estudiante en tiempo real
+     */
+    function filterTable(query) {
+      const rows = document.querySelectorAll("#attendanceTableBody tr.student-row");
+      rows.forEach(row => {
+        const nameEl = row.querySelector(".student-name");
+        if (!nameEl) return;
+        const name = nameEl.textContent.toLowerCase();
+        if (name.includes(query)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    }
+
+    /**
+     * Actualiza la barra de métricas superiores
+     */
+    function updateMetrics() {
+      const total = AppState.students.length;
+      let registered = 0;
+      let onTime = 0;
+      let penalized = 0;
+      let totalPenalties = 0;
+
+      AppState.students.forEach(s => {
+        if (s.arrivalTime) {
+          registered++;
+          if (s.penalty > 0) {
+            penalized++;
+            totalPenalties += s.penalty;
+          } else {
+            onTime++;
+          }
+        }
+      });
+
+      const elTotal = document.getElementById("metricTotalStudents");
+      const elReg = document.getElementById("metricRegistered");
+      const elOnTime = document.getElementById("metricOnTime");
+      const elPen = document.getElementById("metricPenalized");
+      const elSum = document.getElementById("metricTotalPenalties");
+
+      if (elTotal) elTotal.textContent = total;
+      if (elReg) elReg.textContent = registered;
+      if (elOnTime) elOnTime.textContent = onTime;
+      if (elPen) elPen.textContent = penalized;
+      if (elSum) elSum.textContent = `$${totalPenalties.toFixed(2)}`;
+    }
+
+    /**
+     * Marca la hora actual a todos los estudiantes que no tengan hora
+     */
+    function markCurrentTimeToPending() {
+      if (AppState.students.length === 0) {
+        showAlert("Sin estudiantes", "No hay estudiantes en la lista.", "warning");
+        return;
+      }
+      if (!AppState.classStartTime) {
+        showAlert("Hora de Inicio Requerida", "Debes configurar la Hora de Inicio de la Clase antes de registrar asistencias.", "warning");
+        return;
+      }
+
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const currentTime = `${hh}:${mm}`;
+
+      let count = 0;
+      AppState.students.forEach(s => {
+        if (!s.arrivalTime) {
+          s.arrivalTime = currentTime;
+          const result = calculatePenalty(AppState.classStartTime, currentTime);
+          s.delayMinutes = result.delayMinutes;
+          s.penalty = result.penalty;
+          
+          const input = document.getElementById(`arrival_${s.id}`);
+          if (input) input.value = currentTime;
+          updateRowDOM(s);
+          count++;
+        }
+      });
+
+      if (count > 0) {
+        updateMetrics();
+        saveSession();
+        showToast(`Se marcó la hora actual (${currentTime}) a ${count} estudiante(s) pendientes.`, "success");
+      } else {
+        showToast("Todos los estudiantes ya tienen hora asignada.", "info");
+      }
+    }
+
+    /**
+     * Limpia solo las horas marcadas y observaciones
+     */
+    function resetTimesOnly() {
+      if (AppState.students.length === 0) return;
+
+      AppState.students.forEach(s => {
+        s.arrivalTime = "";
+        s.observations = "";
+        s.delayMinutes = 0;
+        s.penalty = 0;
+
+        const inputTime = document.getElementById(`arrival_${s.id}`);
+        if (inputTime) inputTime.value = "";
+        const inputObs = document.getElementById(`obs_${s.id}`);
+        if (inputObs) inputObs.value = "";
+
+        updateRowDOM(s);
+      });
+
+      updateMetrics();
+      saveSession();
+      showToast("Se han limpiado todas las horas de llegada.", "info");
+    }
+
+    /**
+     * Confirma el reinicio completo de la tabla
+     */
+    function confirmResetAll() {
+      if (AppState.students.length === 0) {
+        showToast("No hay datos para limpiar.", "info");
+        return;
+      }
+
+      showConfirm(
+        "¿Limpiar todo el registro?", 
+        "Esta acción eliminará todos los estudiantes cargados y sus asistencias registradas en esta sesión.", 
+        () => {
+          AppState.students = [];
+          AppState.loadedFileName = "";
+          const badge = document.getElementById("loadedFileBadge");
+          if (badge) badge.style.display = "none";
+          const fileInput = document.getElementById("excelFileInput");
+          if (fileInput) fileInput.value = "";
+
+          renderStudentsTable();
+          updateMetrics();
+          localStorage.removeItem(AppState.storageKey);
+          showToast("Todos los datos han sido limpiados.", "info");
+        }
+      );
+    }
+
+    /**
+     * ==========================================================================
+     * EXPORTACIÓN A EXCEL (.XLSX) CON SHEETJS
+     * ==========================================================================
+     */
+    function exportAttendanceToExcel() {
+      try {
+        // Validación 1: Lista vacía
+        if (!AppState.students || AppState.students.length === 0) {
+          showAlert(
+            "Lista no encontrada", 
+            "No es posible exportar el registro porque aún no has subido la lista de estudiantes.", 
+            "warning"
+          );
+          return;
+        }
+
+        // Validación 2: Verificar si la librería SheetJS está presente
+        if (typeof XLSX === "undefined") {
+          showAlert("Error de Librería", "La librería SheetJS no está disponible para exportar.", "error");
+          return;
+        }
+
+        // Fecha actual para el archivo
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        // Preparar las filas estructuradas para el Excel
+        const exportRows = AppState.students.map(s => {
+          let estadoAsistencia = "Ausente / No Registrado";
+          if (s.arrivalTime) {
+            if (s.penalty > 0) {
+              estadoAsistencia = `Tardanza (+${s.delayMinutes} min)`;
+            } else {
+              estadoAsistencia = "Puntual / A tiempo";
+            }
+          }
+
+          return {
+            "N°": s.id,
+            "Nombre del Estudiante": s.name,
+            "Hora Inicio Clase": AppState.classStartTime || "No especificada",
+            "Hora de Llegada": s.arrivalTime ? s.arrivalTime : "No registrada",
+            "Minutos de Retraso": s.arrivalTime ? (s.delayMinutes > 0 ? s.delayMinutes : 0) : "",
+            "Penalidad ($)": s.arrivalTime ? s.penalty.toFixed(2) : "0.00",
+            "Estado": estadoAsistencia,
+            "Observaciones": s.observations || ""
+          };
+        });
+
+        // Crear hoja de cálculo
+        const ws = XLSX.utils.json_to_sheet(exportRows);
+
+        // Configurar anchos de columna para presentación profesional
+        ws['!cols'] = [
+          { wch: 6 },  // N°
+          { wch: 32 }, // Nombre del Estudiante
+          { wch: 18 }, // Hora Inicio Clase
+          { wch: 16 }, // Hora de Llegada
+          { wch: 18 }, // Minutos de Retraso
+          { wch: 15 }, // Penalidad ($)
+          { wch: 22 }, // Estado
+          { wch: 35 }  // Observaciones
+        ];
+
+        // Crear libro de trabajo y adjuntar hoja
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
+
+        // Nombre del archivo solicitado: Registro_Asistencia_[Fecha_Actual].xlsx
+        const exportFileName = `Registro_Asistencia_${dateStr}.xlsx`;
+
+        // Generar descarga
+        XLSX.writeFile(wb, exportFileName);
+
+        showToast(`Archivo descargado: ${exportFileName}`, "success");
+
+      } catch (err) {
+        console.error("Error al exportar a Excel:", err);
+        showAlert("Error de Exportación", "Ocurrió un error inesperado al generar el archivo Excel.", "error");
+      }
+    }
+
+    /**
+     * ==========================================================================
+     * PERSISTENCIA LOCAL (PREVENCIÓN DE PÉRDIDA ACCIDENTAL)
+     * ==========================================================================
+     */
+    function saveSession() {
+      try {
+        const payload = {
+          classStartTime: AppState.classStartTime,
+          students: AppState.students,
+          loadedFileName: AppState.loadedFileName,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(AppState.storageKey, JSON.stringify(payload));
+      } catch (e) {
+        console.warn("No se pudo guardar en localStorage:", e);
+      }
+    }
+
+    function loadSavedSession() {
+      try {
+        const raw = localStorage.getItem(AppState.storageKey);
+        if (!raw) return;
+
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.students) && data.students.length > 0) {
+          AppState.students = data.students;
+          if (data.classStartTime) AppState.classStartTime = data.classStartTime;
+          if (data.loadedFileName) AppState.loadedFileName = data.loadedFileName;
+
+          const startTimeInput = document.getElementById("classStartTime");
+          if (startTimeInput && AppState.classStartTime) {
+            startTimeInput.value = AppState.classStartTime;
+            updateStartTimeStatus(true);
+          }
+
+          if (AppState.loadedFileName) {
+            updateLoadedFileUI(AppState.loadedFileName);
+          }
+
+          renderStudentsTable();
+          updateMetrics();
+          showToast("Sesión previa restaurada automáticamente.", "info");
+        }
+      } catch (e) {
+        console.warn("Error al restaurar sesión previa:", e);
+      }
+    }
+
+    /**
+     * ==========================================================================
+     * SISTEMA VISUAL DE ALERTAS Y NOTIFICACIONES
+     * ==========================================================================
+     */
+    function showAlert(title, message, type = "info") {
+      const modal = document.getElementById("customModal");
+      const titleEl = document.getElementById("modalTitle");
+      const msgEl = document.getElementById("modalMessage");
+      const actionsEl = document.getElementById("modalActions");
+
+      if (!modal || !titleEl || !msgEl || !actionsEl) {
+        alert(`${title}\n\n${message.replace(/<[^>]*>?/gm, '')}`);
+        return;
+      }
+
+      let icon = "ℹ️";
+      if (type === "error") icon = "❌";
+      if (type === "warning") icon = "⚠️";
+      if (type === "success") icon = "✅";
+
+      titleEl.innerHTML = `<span>${icon}</span> ${escapeHtml(title)}`;
+      msgEl.innerHTML = message;
+
+      actionsEl.innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('customModal').classList.remove('active')">
+          Entendido
+        </button>
+      `;
+
+      modal.classList.add("active");
+    }
+
+    function showConfirm(title, message, onConfirm) {
+      const modal = document.getElementById("customModal");
+      const titleEl = document.getElementById("modalTitle");
+      const msgEl = document.getElementById("modalMessage");
+      const actionsEl = document.getElementById("modalActions");
+
+      if (!modal || !titleEl || !msgEl || !actionsEl) {
+        if (confirm(message.replace(/<[^>]*>?/gm, ''))) onConfirm();
+        return;
+      }
+
+      titleEl.innerHTML = `<span>❓</span> ${escapeHtml(title)}`;
+      msgEl.innerHTML = message;
+
+      actionsEl.innerHTML = `
+        <button class="btn btn-secondary btn-sm" id="btnConfirmCancel">Cancelar</button>
+        <button class="btn btn-danger btn-sm" id="btnConfirmOk">Sí, continuar</button>
+      `;
+
+      const cancelBtn = document.getElementById("btnConfirmCancel");
+      const okBtn = document.getElementById("btnConfirmOk");
+
+      cancelBtn.onclick = () => modal.classList.remove("active");
+      okBtn.onclick = () => {
+        modal.classList.remove("active");
+        onConfirm();
+      };
+
+      modal.classList.add("active");
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+
+      const toast = document.createElement("div");
+      toast.className = `toast toast-${type}`;
+
+      let icon = "ℹ️";
+      if (type === "success") icon = "✅";
+      if (type === "error") icon = "❌";
+      if (type === "warning") icon = "⚠️";
+
+      toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <div style="flex: 1;">${escapeHtml(message)}</div>
+        <button type="button" class="toast-close">&times;</button>
+      `;
+
+      const closeBtn = toast.querySelector(".toast-close");
+      closeBtn.onclick = () => toast.remove();
+
+      container.appendChild(toast);
+
+      // Auto cerrar en 4 segundos
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.style.opacity = '0';
+          toast.style.transition = 'opacity 0.3s ease';
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, 4000);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Exponer helpers para onclick inline seguros
+    window.__App = {
+      clearStudentRow,
+      editOrRecalculateRow
+    };
+  </script>
+</body>
+</html>
